@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FINE.APP</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: #fff;
+            margin: 0;
+            padding: 0;
+        }
+        #container {
+            width: 80%;
+            margin: 20px auto;
+            background-color: #222;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .button-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #ff8800;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .button:hover {
+            background-color: #ff9900;
+        }
+        #photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .post {
+            border: 1px solid #444;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            position: relative;
+        }
+        .post img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .like-icon {
+            color: #fff;
+            cursor: pointer;
+            position: absolute;
+            top: 5px;
+            left: 5px;
+        }
+        .like-icon.active {
+            color: #ff0000;
+        }
+        .delete-icon {
+            color: #fff;
+            cursor: pointer;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+        }
+        .comment-section {
+            margin-top: 10px;
+        }
+        .comment-input {
+            width: 80%;
+            padding: 5px;
+            margin-bottom: 5px;
+        }
+        .add-comment-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .add-comment-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>FINE.App</h1>
+
+        <div class="button-container">
+            <button class="button" id="choose-publish-btn">Choise tes photos!</button>
+        </div>
+
+        <div id="photo-grid"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedPhotos = JSON.parse(localStorage.getItem('photos')) || [];
+            const photoGrid = document.getElementById('photo-grid');
+
+            storedPhotos.forEach(photoData => {
+                const postElement = createPostElement(photoData);
+                photoGrid.appendChild(postElement);
+            });
+        });
+
+        function addPhotoToStorageAndDisplay(photoData) {
+            const storedPhotos = JSON.parse(localStorage.getItem('photos')) || [];
+            storedPhotos.push(photoData);
+            localStorage.setItem('photos', JSON.stringify(storedPhotos));
+
+            const photoGrid = document.getElementById('photo-grid');
+            const postElement = createPostElement(photoData);
+            photoGrid.appendChild(postElement);
+        }
+
+        function removePhotoFromStorage(photoData) {
+            const storedPhotos = JSON.parse(localStorage.getItem('photos')) || [];
+            const updatedPhotos = storedPhotos.filter(photo => photo.src !== photoData.src);
+            localStorage.setItem('photos', JSON.stringify(updatedPhotos));
+        }
+
+        function createPostElement(photoData) {
+            const postElement = document.createElement('div');
+            postElement.classList.add('post');
+
+            const imgElement = document.createElement('img');
+            imgElement.src = photoData.src;
+            postElement.appendChild(imgElement);
+
+            const likeIcon = document.createElement('i');
+            likeIcon.classList.add('far', 'fa-heart', 'like-icon');
+            likeIcon.addEventListener('click', function() {
+                likeIcon.classList.toggle('active');
+                updateLikes(photoData.src);
+            });
+            postElement.appendChild(likeIcon);
+
+            const deleteIcon = document.createElement('i');
+            deleteIcon.classList.add('fas', 'fa-trash-alt', 'delete-icon');
+            deleteIcon.addEventListener('click', function() {
+                postElement.remove();
+                removePhotoFromStorage(photoData);
+            });
+            postElement.appendChild(deleteIcon);
+
+            const commentSection = document.createElement('div');
+            commentSection.classList.add('comment-section');
+
+            const commentInput = document.createElement('input');
+            commentInput.classList.add('comment-input');
+            commentInput.type = 'text';
+            commentInput.placeholder = 'Add a comment...';
+
+            const addCommentButton = document.createElement('button');
+            addCommentButton.classList.add('add-comment-button');
+            addCommentButton.textContent = 'Add Comment';
+
+            addCommentButton.addEventListener('click', function() {
+                const commentText = commentInput.value.trim();
+                if (commentText !== '') {
+                    const comment = document.createElement('div');
+                    comment.textContent = commentText;
+                    commentSection.appendChild(comment);
+                    commentInput.value = ''; // Clear the input field
+                    saveComment(photoData.src, commentText);
+                }
+            });
+
+            commentSection.appendChild(commentInput);
+            commentSection.appendChild(addCommentButton);
+
+            const comments = getComments(photoData.src);
+            comments.forEach(commentText => {
+                const comment = document.createElement('div');
+                comment.textContent = commentText;
+                commentSection.appendChild(comment);
+            });
+
+            postElement.appendChild(commentSection);
+
+            if (getLikes(photoData.src)) {
+                likeIcon.classList.add('active');
+            }
+
+            return postElement;
+        }
+
+        function saveComment(photoSrc, commentText) {
+            const comments = JSON.parse(localStorage.getItem('comments')) || {};
+            comments[photoSrc] = comments[photoSrc] || [];
+            comments[photoSrc].push(commentText);
+            localStorage.setItem('comments', JSON.stringify(comments));
+        }
+
+        function getComments(photoSrc) {
+            const comments = JSON.parse(localStorage.getItem('comments')) || {};
+            return comments[photoSrc] || [];
+        }
+
+        function updateLikes(photoSrc) {
+            const likes = JSON.parse(localStorage.getItem('likes')) || {};
+            likes[photoSrc] = !likes[photoSrc];
+            localStorage.setItem('likes', JSON.stringify(likes));
+        }
+
+        function getLikes(photoSrc) {
+            const likes = JSON.parse(localStorage.getItem('likes')) || {};
+            return likes[photoSrc] || false;
+        }
+
+        document.getElementById('choose-publish-btn').addEventListener('click', function() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.style.display = 'none';
+
+            fileInput.addEventListener('change', function(event) {
+                const fileList = event.target.files;
+
+                for (let i = 0; i < fileList.length; i++) {
+                    const file = fileList[i];
+                    const reader = new FileReader();
+
+                    reader.onload = function(event) {
+                        const photoData = { src: event.target.result };
+                        addPhotoToStorageAndDisplay(photoData);
+                    };
+
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            fileInput.click();
+        });
+    </script>
+</body>
+</html>
